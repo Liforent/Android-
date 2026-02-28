@@ -75,6 +75,9 @@ com.github.getActivity:ShapeView
 
 com.davemorrissey.labs:subsampling-scale-image-view-androidx
 
+- 展示异常时没有兜底
+  	出现一个线上图片 https://pxb7-oss-test.pxb7.com/pxb7-test/im/image/20251210/1765360040862.jpeg 在使用大图展示控件展示时，format不支持的问题，会在onImageLoadError处回调异常，直接使用ImageView.setImageUri(File.toUri())能直接展示了，但是缩放不了。
+
 ## 导航栏 DslTabLayout
 
 com.github.angcyo.DslTablayout:TabLayout

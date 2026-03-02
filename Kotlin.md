@@ -80,7 +80,9 @@ Java反射允许程序在运行时：
 
 ### Kotlin的反射与Java的反射有什么不同？
 
-# 协程
+# Coroutines
+
+## CoroutineStart
 
 - withContext和launch有什么区别？
 
@@ -115,9 +117,77 @@ Java反射允许程序在运行时：
     协程中的局部变量机制是CoroutineContext.
     ~~~
 
-    
+
+## 协程的取消机制
+
+- 协程取消的原理
+		1. 协程作用域内抛出CancellationException
+		2. 协程检测到这个异常之后主动结束执行
+	
+	- CancellationException
+		不是普通的异常，如果协程因CancellationException而结束，应该当做协程正常终止。为了让CancellationException能正常终止协程，不应该在代码里捕获这个异常，而是继续抛出这个异常，能让上层去进行后续操作。如果反复捕获并忽略这个异常，会产生僵尸协程。
+
+## QA
+
+下边代码会有什么问题？
+
+~~~kotlin
+launch {
+  while (true) {
+    try {
+      doWork()
+      delay(1000)
+    } catch (e: Exception) {
+      logError(e)
+    }
+  }
+}
+1. while(true)导致了无限循环，即使收到了CancellationException也退出不了。
+2. 捕获了CancellationException异常，没有抛出，也就是吞掉了取消信号。这段代码会导致 死循环继续跑，变成僵尸协程（占着资源不干活，也不退出）。
+如何解决上述问题？
+- 第一步，while循环增加isActive判断协程是否被取消，
+- 第二步，不捕获CancellationException异常，重新抛出该异常。
+		- 或者delay()移除try-catch，让delay()方法能直接抛出该异常 。
+~~~
+
+
 
 # Flow
+
+## SharedFlow
+
+- replay
+		-  新订阅者进来就能看到回放的数据
+	- extraBufferCapacity
+		- 缓冲区容量，这个缓存区对所有消费者来说是共享的。
+		- 如果没有活跃的消费者，那么extraBufferCapacity里不会存放数据。
+		- 如果有多个活跃的消费者，每个消费者都可以从extraBufferCapacity里取出数据，触发缓冲区更新，那么消费速度慢的，可能会丢失缓冲区里的数据的收集。
+	- extraBufferCapacity和buffer操作符的区别？
+		- extraBufferCapacity是SharedFlow的构造函数里的，所有下游消费者共享。
+		- buffer()是操作符，适用于下游的单个收集者。
+	- extraBufferCapacity为0，如果SharedFlow有两个订阅者，一个活跃一个非活跃，此时上游emit数据，下游的活跃的收集者能收到订阅吗？
+
+- emit与tryEmit有什么区别？
+	 -  emit是挂起函数，必须协程中使用，无返回值，需要等待下游收集者处理
+	 - tryEmit非挂起，可以在任意地方使用，返回发送成功或者失败，不等待下游的收集，需要自己处理发送失败的情况。  （当出现背压，下游来不及处理，缓存区满了，协程取消了等场景会失败。）!
+- 什么是flow的挂起点？Suspension points
+	- delay(),ensureActive()等
+	- flow会在挂起点检查取消状态
+- flow的异常处理
+	- CancellableException
+	- runCatching和try...catch什么区别？
+
+## flow的各种操作符
+
+- buffer()
+	创建缓冲区，允许消费者来不及消费时放入缓冲区。
+- conflate()
+	处理旧数据之前，如果有新数据到达，会丢弃旧数据。
+	buffer可以缓存数据，conflate会丢弃数据，如果同时设置了buffer()和conflate()，是否会丢弃缓冲区的数据？
+	- 这两个操作符语义上是冲突的，以操作符顺序为准，后一个会覆盖前一个的行为。
+- collectLatest()
+	处理数据时，如果有新数据到达，会取消当前正在进行的处理，进行处理下一个。
+	conflate()作用是丢弃中间值，只处理最新一个，
 
 # 高级用法
 
@@ -144,6 +214,14 @@ Java反射允许程序在运行时：
 ### SAM转换
 
  Single Abstract Method Conversions. fun Interface的使用。
+
+### runCatching
+- 
+- 
+- runCatching和try...catch有什么区别？
+   runCatching其实就是Kotlin里对try catch的一个封装，对请求成功或者失败返回了请求结果Result<T>。
+   那runCatching的优势在哪里？
+   优雅的链式调用，适用于，对结果进行map转换等场景。
 
 QA
 

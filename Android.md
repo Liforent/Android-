@@ -1,8 +1,41 @@
 # Android底层
 
+## Binder机制
+
+
+
+1. Linux系统有哪些IPC方式?
+
+2. Android中有哪些IPC方式?(回答出6种)各种IPC方式的对比以及适用场景
+
+3. 传统IPC方式有哪些缺点?(Binder机制有哪些优点?)
+
+4. 说一下Binder通信模型
+
+5. 说一下Binder进行数据传输的具体过程
+
+6. Activity之间传输数据,除了使用Intent,还能如何传输?
+
 ## Handler机制
 
 ### Q&A
+
+1. handler机制简介
+2. 介绍一下4个核心类和他们的作用
+3. 可以直接new Message()吗
+4. message的分类
+5. Message池的作用
+6. 介绍一下MessageQueue存取Message的流程
+7. Handler有哪些作用?
+8. Handler,Looper,Thread,MessageQueue的对应关系
+9. 为什么子线程不能直接toast而主线程可以?
+10. 主线程什么时候初始化了Looper?
+11. Looper死循环为什么不会导致应用卡死？
+12. 主线程的死循环如何处理其他事务?
+13. 主线程的死循环是不是特别消耗CPU资源？
+14. 使用Handler的postDelay后消息队列会有什么变化？
+15. MessageQueue使用的底层数据结构是什么?队列,链表有什么区别?
+16. 什么是IdleHandler?什么时候触发?怎么使用?有哪些使用场景?
 
 #### 子线程可以直接创建Handler吗？主线程为什么可以直接使用Handler而不用创建Looper？
 
@@ -17,7 +50,116 @@ public Handler() {
 主线程在ActivityThread里调用了prepareMainLooper()方法来创建Looper了。
 ~~~
 
+
+
+## 数据传输和存储
+
+### SharedPreference
+
+一种 **轻量级存储方式**，用于保存简单的键值对数据.通过 `synchronized` 保证线程安全（但跨进程不安全）。
+
+#### SP缺点
+
+	1. 不适合存储大数据,XML解析性能差,数据量大的时候IO开销高.
+	1. 跨进程不安全
+	1. 不支持复杂数据接口,无法直接存储对象或列表(需要序列化)
+	1. commit()同步写入可能导致ANR
+	1. apply()异步提交可能丢失数据(Crash的时候)
+	1. 无事务支持(无法回滚)
+
+#### commit()和apply()区别?
+
+### MMKV
+
+1. 说一下Android常用的数据持久化方法
+
+   - Sqlite
+
+     有哪些操作sqlite的框架
+
+   - SharedPreference
+
+     1. 如何存储的?如何加载的?
+
+     2. 能跨进程吗?
+
+     3. 还有其他什么不足?
+
+     4. commit()和apply()有什么区别?
+
+        apply无返回值,先提交到内存,再异步提交到磁盘.
+
+        commit是同步提交到磁盘,效率低.
+
+     5. 如何保存对象?
+
+   - DataStore
+
+   - MMKV
+
+   - 什么是Room,如何使用
+
+2. 什么是序列化?Android中有哪些序列化的方式?有什么区别?
+
+3. FastJson Gson Jackson对比
+
 # 四大组件
+
+## Activity
+
+### 生命周期
+
+1. 生命周期
+
+2. 切换横竖屏生命周期变化
+
+3. android:configChanges其他属性的作用?
+
+4. onPause,onDestroy何时触发,一定会触发吗?
+
+5. onNewIntent什么时候调用?
+
+6. 启动模式和各种flags
+
+7. AMS中如何管理Activity信息的?
+
+   ActivityRecord,TaskRecord,ActivityTask,ActivitySupervisor
+
+## Service
+
+1. 生命周期
+
+2. Service是什么?它与Thread的区别?
+
+3. IntentService
+
+   JobIntentService,WorkManager
+
+4. HandlerThread
+
+5. 如何保证Service不被杀死?进程保活?
+
+6. Android中有哪些创建线程的方法?AsynkTask有什么缺点?
+
+## ContentProvider
+
+## BroadcastReceiver
+
+1. 广播的分类
+
+   1. 静态动态
+   2. 有序,无序
+   3. 本地,全局
+
+2. 为什么广播开销高?
+
+3. 有哪些系统广播?
+
+4. 使用广播有什么注意事项?(导致ANR)
+
+5. 广播实现的原理
+
+   AMS,观察者模式
 
 ## Fragment
 
@@ -36,6 +178,702 @@ override fun onCreate(savedInstanceState: Bundle?) {
    }
 // 配置更改时onCreate()方法可能会被多次调用，会出现多个MainFragment实例。
 ~~~
+
+
+
+1. Fragment有哪些加载到Activity的方式
+2. FragmentPagerAdapter和FragmentStatePagerAdapter的区别
+3. 开启一个带Fragment的Activity的生命周期变化
+
+## Context
+
+## Intent
+
+### PendingIntent
+
+# View
+
+## View绘制流程
+
+### Window
+
+抽象类,各种view都在它上边显示
+
+### PhoneWindow
+
+Window的唯一实现类,包含了一个DecorView对象,以及各种操作窗口的方法比如setTitle(),setBackgroundDrawable()等.
+
+mWindow是在==Activity的attach方法里创建的==.每个Activity都有一个对应的window.
+
+```kotlin 
+//Activity.java
+final void attach(...) {
+  //伪代码
+  mWindow = new PhoneWindow(...);
+	mWindow.setCallback();
+  mWindow.setUiOptions();
+  //窗口管理类
+  mWindow.setWindowManager();
+  mWindow.setColorMode();
+  ...
+}
+```
+
+### WindowManager
+
+WindowManager是Activity管理Window的管理类.实际上管理的是Window里的DecorView.
+
+两者是在handleResumeActivity()方法里关联在一起的.
+
+WindowManagerImpl将DecorView作为根布局加入到了PhoneWindow中.
+
+WindowManagerImpl并没有直接操作View的相关方法,而是交给了WindowManagerGlobal,这是一个单例类,也就是一个进程中最多仅有一个.
+
+WindowManagerGlobal将decorView添加到了ViewRootImpl中.通过ViewRootImpl对其内部的view进行管理.
+
+### ViewRoot
+
+主要作用是连接WMS和DecorView.
+
+ViewRootImpl是WindowManagerGlobal工作的实际实现者.
+
+1. 与WMS通讯,调整窗口大小和布局
+2. 向DecorView派发输入事件
+
+### DecorView
+
+所有Activity的根View,是一个FrameLayout,decoreView中包含ActionBar和ContentParent,也就是setContentView()传入的布局
+
+全局变灰可以考虑监听每个Activity获取到DecorView的时候,把DecorView置灰.
+
+### setContentView()
+
+api29之前是调用PhoneWindow.setContentView()
+
+api29之后是调用AppCompatDelegateImpl.setContentView()
+
+本质上都是先根据窗口风格为该窗口选择不同的布局文件,然后设置contentParent(R.id.content),因此requestFeature()必须在setContentView()之前.
+
+```java
+//AppCompatActivity.java
+public void setContentView(View view) {
+  initViewTreeOwners();
+  getDelegate().setContentView(view);
+}
+
+//AppCompatDelegateImp.java
+public void setContentView(View view) {
+  //创建decorview,最后
+  ensureSubDecor();
+  //这里可以看到setContentView就是把View添加了到了mSubDecor的R.id.content里
+  ViewGroup contentParent = mSubDecor.findViewById(android.R.id.content);
+  contentParent.removeAllViews();
+  contentParent.addView(v);
+  mAppCompatWindowCallback.getWrapped().onContentChanged();
+}
+
+//AppCompatDelegateImp.java
+public ViewGroup creatSubDecor() {
+  //获取AppCompatTheme里边设置的各种属性,
+  TypedArray a = mContext.obtainStyledAttributes(R.styleable.AppCompatTheme);
+  //根据主题风格来inflate subDecor
+  subDecor = (ViewGroup) inflater.inflate(R.layout.xxx, null);
+  ...
+  mTitileView = (TextView) subDecor.findViewById(R.id.title);
+  ...
+  contentView.setId(android.R.id.content);
+  ...
+  //这里phoneWindow实际上也就调用mContentParent.addView(view, params)添加了subDecor
+  mWindow.setContentView(subDecor);
+  return subDecor;
+}
+```
+
+### WindowInsets
+
+插入物,常见的Insets有
+
+- STATUS_BAR
+
+- NAVIGATION_BAR
+
+- IME
+
+  前两者又被称为System bar
+
+如果开发者绘制的内容出现在了系统UI区域内,就可能出现视觉与手势的冲突.开发者可以借助Insets把View从屏幕边缘向内移动到一个合适的位置.
+
+### Choreographer
+
+4.1之后新增的机制,可以接受Vsync信号,统一管理输入,动画,绘制等任务的执行时机.可以用来监控应用的帧率等.
+
+- 常用类
+
+  - CallbackQueue
+
+  Choreographer添加的任务最后都被封装为CallbackRecord,以链表的形式保存在CallbackQueue中.mCallbackQueue是一个数组,长度为4,保存五个CallbackQueue链表,分别处理输入,动画,遍历绘制等任务.
+
+  - FrameDisplayEventReceiver
+
+  用于接受Vsync事件,并将事件提交给looper.
+
+  - FrameHanlder
+
+  用于处理主线程关于Vsync的事件.执行异步消息.
+
+- 创建
+
+  - ViewRootImpl的构造方法里创建了mChoreographer,类似于Looper,mChoreographer也是ThreadLocal变量,线程私有的.
+
+  - Choreographer的构造方法
+
+    ```java
+    private Choreographer(Looper looper,int vsynSource) {
+      mLooper = looper;
+      mHandler = new FrameHandler(looper);
+      // 用于接受Vsync信号
+      mDisplayEventReceiver = USE_VSYNC ? new FrameDisplayEventReceiver(looper,vysncSource) : null;
+      //上一帧绘制时间点
+      mLastFrameTimeNanos = Long.MIN_VALUE;
+      //一般都是16.67ms
+      mFrameIntervalsNanos = (long)(1000000000 / getRefreshRate());
+      //
+      mCallbackQueues = new CallbackQueue[CALLBACK_LAST + 1];
+      for (int i=0; i<= CALLBACK_LAST; i++) {
+        mCallbackQueues[i] = new CallbackQueue();
+      }
+    }
+    ```
+
+- Vsync回调流程
+
+  Vsync信号由SurfaceFlinger中创建HWC触发,唤醒DispSyncThread线程,再到EventThread线程,然后再通过BitTube直接传递到目标进程所对应的目标线程,执行handleEvent方法.
+
+  ```Java
+  // FrameDispalyEventReceiver
+  private final class FrameDispalyEventReceiver extends DisplayEventReceiver implements Runnable {
+    ...
+    @Override 
+    public void onVsync(long timestampNanos, int buildInDispalyId, int frame) 	{
+      ...
+      //收到Vsync信号后,由FrameHanlder发送消息,消息的callback为 FrameDispalyEventReceiver自身.
+      Message msg = Message.obtain(mHandler, this);  
+      msg.setAsynchronous(true);
+      mHandler.sendMessageAtTime(...)  
+    }
+    
+    @Override
+    public void run() {
+      mHavePendingVsync = false;
+      doFrame(mTimestampNanos, mFrame);
+    }
+      
+  }
+  // doFrame里边最终会请求下次vsync信息处理
+  ```
+
+### 从Activity启动到View绘制流程
+
+1. 我们从activity.onResume()开始讲述
+
+2. 添加window,会调用ViewRootImpl.setView()
+
+3. setView()会调用requestLayout()请求布局
+
+4. 接着会走到ViewRootImpl的scheduleTraversals(),再接着是performTraversals().
+
+   所有的UI变化都是走到scheduleTraversals().包括requestLayout(),ValueAnimator.start()View.invalidate()等.
+
+   ```Java
+   void scheduleTraversals() {
+     ...
+     //添加同步消息屏障  
+     mTraversalBarrier = mhandelr.getLooper().getQueue().postSyncBarrier(); 
+     // 发起一个callBack,里边的runnbale里的内容就是doTraversal()
+     mChoreographer.postCallback(
+     	Chreographer.CALLBACK_TRAVERSAL,mTraversalRunnable,null);
+     )
+     if (!mUnbufferedInputDispatch) {
+                   scheduleConsumeBatchedInput();
+               }
+               notifyRendererOfFramePending();
+               pokeDrawLockIfNeeded();
+   }
+   
+   //也就是scheduleTraversals()不是立刻执行performTraversals(),而是向chreographer发送了一个runnable.
+   ```
+
+5. Chreographer处理ViewRootImpl的doTraversal()请求
+
+   1. doTraversal被封装成了一个TraversalRunnable,然后调用Chreographer.postCallback()
+   2. callback被存放在chreographer的CallbackQueue里.
+   3. 当native层由收到vsync信号后,Chreograper的FrameDisplayEventReceiver会回调onVsync方法
+   4. FrameHandler向主线程发送异步消息,msg的callback为FrameDisplayEventReceiver本身
+   5. ViewRootImpl的doTraversal方法里设置了同步消息屏障,因此主线程会优先处理FrameDisplayEventReceiver这个异步消息.
+   6. FrameDisplayEventReceiver的run方法里调用了Chreographer的doFrame()
+   7. doFrame()依次执行了5个doCallbacks()方法,这些callBacks就是在存放Chreographer的CallBackQueue里,其中就有ViewRootImp中的TraversalRunnable.doFrame()里最终还会请求下次vsync信号到了的处理.
+   8. TraversalRunnable的run方法会调用doTraversal()
+   9. doTraversal()里最终调用performTraversal()方法进入绘制流程
+
+### 绘制入口
+
+ViewRootImpl的performTranversals()开始绘制,依次遍历调用performMeasure(),performLayout(),performDraw()
+
+### 绘制流程
+
+#### measure流程
+
+测量View的宽高,调用View.measure()方法递归测量,深度优先,最后返回各个子view的测量值.某些情况下(比如子view设置了match_parent)需要多次measure才能确定View的宽高.所以measure过程后得到的宽高不一定准确.[(如何获取View的宽高?)](#getViewHeight).
+
+##### MeasureSpec
+
+- MeasureSpec概括了从父布局传递给子布局的要求,也就是测量说明书,从Window开始,到DecorView,到ViewGroup,每一层结合自己的LayoutParams,生成自己的测量说明书,交给下一层.从而实现了父view对子view的尺寸的限制.
+
+- 32位int型.由mode+size组成(2+30位)
+
+- mode
+
+  - EXACTLY
+
+    精确值模式,也就是父布局设定了layout_height,layout_width属性,子view的最大值会被限定在这个值之内.
+
+  - AT_MOST
+
+    最大值模式,也就是父布局设置了wrap_content
+
+  - UNSPECIFIED
+
+    未指定的,父布局没有对子view做限制很少用
+
+- MeasureSpec的使用场景
+
+  - onMeasure()中要用父view给自己生成的MeasureSpec,测量自己的尺寸
+
+  - onMeasure()中测量子View的时候,生成childMeasureSpec提供给子view,让子view去测量尺寸.
+
+    1. onMeasure()-->
+
+    2. measureChildWidthWithMargins(child,widthMeasureSpec..)-->
+
+    3. child.measure(childWidthMeasureSpec)
+
+       这里的childWidthMeasureSpec要通过getChildMeasureSpec()来生成
+
+- <a name="getChildMeasureSpec">计算childMeasureSpec</a>
+
+  ```Kotlin
+  //根据父view剩余大小,MeasureSpec的值,和子view的layoutParams计算
+  int getChildMeasureSpec(int spec,int padding,int childDimension){
+    switch(childDimesion){
+      case 具体数值:
+        childSpec.mode = EXACTLY;
+        childSpec.size = min(数值,parentLeftSize);
+        break;
+      case WRAP_CONTENT:
+        childSpec.mode = AT_MOST;
+        childSpec.size = less than parentLeftSize;
+        break;
+      case MATCH_PARENT:
+        childSpec.mode = parentSpec.mode;
+        childSpec.size = if(parentSpec.mode == EXACTLY) parentLeftSize
+          else if(parentSpec.mode == AT_MOST) less than parentLeftSize
+      	break; 
+    }
+  }
+  ```
+
+  ![img](https://img-blog.csdnimg.cn/img_convert/4e78b5c10216902e04c7c2c98bc2f0a3.png)
+
+- 总结
+
+  - 子view为具体数值,那么子view的mode是exactly和具体数字
+
+
+  - 子view为match_parent,再看父view的mode,如果是exactly,那么子view的mode是exactly,size是父容器剩余的size
+
+  - 其他情况子view的mode都是AT_MOST,size都是不超过父容器的剩余空间.
+
+- Measure流程分析
+
+  1. ViewRootImpl.performTranversals()
+
+  2. ViewRootImpl.performMeasure()
+
+     ViewRootImpl.performMeasure获取到了DecorView和它的MeasureSpec之后,开始performMeasure(int childWidthMeasureSpec, int childHeightMeasureSpec)
+
+  3. View.measure()
+
+     先从decorView开始measure.
+
+     ```Java
+     //1.这是一个final方法
+     //2.参数是父view的measueSpec,调用这个方法来测量出view的大小.
+     //3.里边调用了onMeasure()来进行实际的测量工作
+     public final void measure(int widthMeasureSpec, int heightMeasureSpec) {
+       ...
+       //是否需要强制layout,比如调用View.requestLayout()会在mPrivateFlags加入PFLAG_FORCE_LAYOUT标记来强制layout 
+       final boolean forceLayout = (mPrivateFlags & PFLAG_FORCE_LAYOUT) == PFLAG_FORCE_LAYOUT;
+       ...
+       //需要layout的条件  
+      	final boolean needsLayout = specChanged && (sAlwaysRemeasureExactly || !isSpecExactly || !matchesSpecSize); 
+       
+       if (forceLayout || needsLayout) {
+         //满足条件,并且缓存里没有layout数据或者忽略缓存的时候onMeasure()
+          onMeasure(widthMeasureSpec, heightMeasureSpec);
+         ...
+       }  
+       // 如果自定义view重写了onMeasure()之后,但是没有调用setMeasureDimension(),会抛出异常.
+       if (mPrivateFlags & PFLAG_MEASURED_DIMENSION_SET != PFLAG_MEASURED_DIMENSION_SET) {
+         throw new IllegalStateException(...)
+       }
+       mPrivateFlags |= PFLAG_LAYOUT_REQUIRED;
+       mOldWidthMeasureSpec = widthMeasureSpec;
+       mOldHeightMeasureSpec = heightMeasureSpec;
+        // 保存到缓存中
+       mMeasureCache.put(key, ((long) mMeasuredWidth) << 32 |
+           (long) mMeasuredHeight & 0xffffffffL); // suppress sign extension
+     }
+     
+     //measure流程总结
+     
+     1. 判断是否强制layout或者needLayout,是则onMeasure
+     2. 检测是否setMeasureDimension
+     3. 保存到缓存
+     ```
+
+  4. onMeasure()
+
+     - ViewGroup中没有重写onMeasure(),而是交给了其子类去重写.(不同ViewGroup有不同的测量规则.)
+
+     - DecorView继承自FrameLayout.View绘制里最先触发的是FrameLayout里的onMeasure()
+
+     - ViewGroup在测量的时候,如果子view设置了match_parent,那么需要测量两次.第一次遍历子view,遇到match_parent就给他大小赋0或者其他固定值,最终测量出父view大小. 知道父view大小了之后,再次测量,才能得出match_parent的子view的大小.
+
+     - RelativeLayout的子view有相互依赖关系,也需要多次测量,第一次测量进行布局确定子view顺序,第二次测出大小.
+
+       LinearLayout如果使用了weight的情况下,也需要多次测量.
+
+     - 这种多次测量是指数级的,布局层级过深后会影响性能.而Compose虽然一直在套娃,但是没有布局嵌套问题,Compose只允许测量一次.
+
+       ```java 
+       //View的onMeasure()
+       protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+         setMeasureDimesion(getDefaultSize(getSuggestionMinimumWidth(),widthMeasureSpec), getDefaultSize(getSuggestionMinimumHegiht(),heightMeasureSpec));
+       }
+       
+       
+       
+       //以FrameLayout.onMeasure为例简单分析一下ViewGroup的onMeasure()流程.
+       protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+         //1.遍历测量子View,按照需要更新maxWidth和maxHeight.这里就是传measureSpec给子view,再调用子view.measure().
+         for (...) {
+           ...
+           measureChildWithMargins(child, widthMeasureSpec, 0, heightMeasureSpec, 0);
+         }
+         //2.确定父View的宽高
+         setMeasuredDimension(resolveSizeAndState(maxWidth, widthMeasureSpec, childState),
+                       resolveSizeAndState(maxHeight, heightMeasureSpec,
+                               childState << MEASURED_HEIGHT_STATE_SHIFT));
+         //3.如果子view的宽高是MATCH_PARENT,需要等确定父View的宽高确定后,再重新计算这些子view的MeasureSpec,再重新计算这些子View的宽高.
+       }
+       ```
+
+#### layout流程
+
+### LayoutInflater
+
+布局加载有两种方式
+
+1. 填充View树--addView(view)
+
+2. 加载解析xml文件--LayoutInflater.inflate()
+
+   ```java 
+   // LayoutInflater.java
+   public View inflate(@LayoutRes int resource, @Nullable ViewGroup root, boolean attachToRoot) {
+     ...
+     // 1.解析XML,最终会调用loadXmlResourceParser()
+     XmlResourceParser parser = res.getLayout(resource);
+     try {
+     // 2.填充View树.这个方法是根据XmlPullParser,用createViewFromTag()生成view
+         return inflate(parser, root, attachToRoot);
+     } finally {
+         parser.close();
+     }
+   }
+   
+   //ResourcesImpl.java 
+   XmlResourceParser loadXmlResourceParser(@NonNull String file,@AnyRes int id,int assetCookie, @NonNull String type) throws NotFoundException {
+     //一堆代码,这个方法的作用就是将xml文件读取到内存中,并进行一些数据解析和封装.这个方法本质是一个IO操作,比较耗费性能.
+     ...
+   }
+   
+   //这个方法主要是利用反射生成view
+   View parent,String name,Context context,AttributeSet attrs,ignoreThemeAttr) {
+     ...
+     //1.对view,bink等特殊标签做处理.
+     //2.进行对Factory,Factory2的设置判断.(可以同过这两个直接生成view)
+     //	这里可以通过Factory2()来实现全局换肤换字体等功能.
+     //3.如果没有设置2,那么就用LayoutInflater默认方式生成View(通过反射)
+   }
+   ```
+
+## 事件分发机制
+
+### 本质
+
+将点击事件(Touch事件)传递到某个具体的View上然后处理,用户触碰屏幕时,会产生touch事件,相关细节会被封装成MotionEvent对象
+
+### MotionEvent对象
+
+DOWN,MOVE,UP,CANCEL
+
+### 事件分发顺序
+
+Activity->ViewGroup->View
+
+### 核心方法
+
+1. dispatchTouchEvent,分发,默认传递到下一层.
+2. onInterceptTouchEvent,拦截,ViewGroup中才有,默认不拦截.
+3. onTouchEvent
+
+### 流程详解
+
+#### 伪代码
+
+```Kotlin
+fun dispatchTouchEvent(ev: MotionEvent): Boolean{
+ return if (isViewGroup) {
+          if (onInterceptTouchEvent(ev)) {
+            onTouchEvent(ev)
+          } else {
+            child.dispatchTouchEvent(ev)
+          } 
+        } else {
+          onTouchEvent(ev)
+        }
+}
+```
+
+#### dispatchTouchEvent()
+
+- 默认会传递到下一层,如果当前是ViewGroup,还可以拦截了直接交给本层的onTouchEvent处理,默认是不拦截.
+- 如果下一层消费了,那么直接返回false
+- 如果下一层没有消费,那么返回本层的onTouchEvent处理结果
+- dispatch结果
+  - 返回true表示被当前视图消费了.
+  - 返回super.dispatchTouchEvent()表示继续分发该事件.
+  - 返回false表示交给父View的onTouchEvent()处理.
+
+#### onInterceptTouchEvent()
+
+- 只在ViewGroup中,如果拦截了交给本层ViewGroup的onToucheEvent处理,默认是不拦截,传递到下一层.
+- 要拦截时,可以重写onInterceptTouchEvent方法,也可以在子view中调用requestDisallowInterceptTouchEvent(boolean)方法,让父view拦截或不拦截.
+
+### onTouchEvent() 
+
+- 如果返回true,那么最终消费了事件
+- 如果返回false,那么没有消费事件,事件传递给上一层的onTouchEvent
+
+### onTouch,onTouchEvent,onClick
+
+```Kotlin
+//伪代码,优先级是onTouch,onTouchEvent,onClick
+fun consumeEvent(ev:MotionEvent){
+  if(setOnTouchEventListener){
+    if(!onTouch()){
+      onTouchEvent()
+    }
+  }else{
+    onTouchEvent()
+  }
+  if(setOnclickListener){
+    onClick()
+  }
+}
+事件进入到view.dispatchTouchEvent的时候,会先判断是否设置了onTouchListener,如果设置了onTouchListener,那么会调用onTouch方法,如果onTouch()返回false,也就是没有消费,onTouchEvent才会执行.onClick()方法只有设置了onClickListener才会被调用.
+```
+
+### 滑动冲突
+
+#### 外部拦截
+
+```Kotlin
+//外部拦截只要重写拦截方法,根据需要拦截事件往下分发就可以了,
+public boolean onInterceptTouchEvent(MotionEvent ev){
+  boolean intercepted = false;
+  boolean parentCanIntercept;
+  switch (ev.getActionMasked()){
+    case MotionEvent.ACTION_DOWN:
+      intercepted = fasle;
+      break;
+    case MotionEvent.ACTION_MOVE:
+      if(parentCanIntercept) {
+        intercepted = true;
+      }else{
+        intercepted = false;
+      }
+      break;
+    case MotionEvent.ACTION_UP:
+      intercepted = false;
+      break;
+  }
+  return intercepted;
+}
+```
+
+#### 内部拦截
+
+```Kotlin
+//父view中,ACTION_DOWN不能拦截,否则子view接收不到后续事件了,其他事件要允许拦截,因为要配合子view处理
+public boolean onInterceptTouchEvent(MotionEvent ev){
+  if(ev.getActionMask() == MotionEvent.ACTION_DOWN){
+    return false;
+  }else{
+    return true;
+  }
+}
+
+//子view中,ACTION_MOVE的时候,根据需要让父view去拦截
+public boolean dispatchTouchEvent(MotionEvent ev){
+  boolean parentCanIntercept;
+  switch (ev.getActionMask()){
+    case MotionEvent.ACTION_DOWN:
+      getParent().requestDisallowInterceptTouchEvent(true);
+      break;
+    case MotionEvent.ACTION_MOVE:
+      if(parentCanIntercept){
+         getParent().requestDisallowInterceptTouchEvent(false);
+      }
+      break;
+    case MotionEvent.ACTION_UP:
+      break;
+  }
+  return super.dispatchTouchEvent(ev);
+}
+```
+
+
+
+RecyclerView
+
+- scrollToPosition
+
+  ```kotlin
+  如果item已经在可见范围内了,还会滑动吗? 答案是不会.需要指明对齐方式
+  layoutManager?.let {
+          val smoothScroller = LinearSmoothScroller(context, snapPreference)
+          smoothScroller.targetPosition = position
+          it.startSmoothScroll(smoothScroller)
+      }
+  ```
+
+
+
+## 常用控件
+
+## RecyclerView
+
+1. 相关类的作用,以及他们的常用方法
+
+   - ViewFlinger
+
+   - ItemDecoration
+
+   - ItemAnimator
+
+   - Recycler
+
+   - SnapHelper
+
+   - SmoothScroller
+
+   - ViewHolder
+
+     - onCreateViewHolder()
+     - onBindViewHolder()
+
+   - Adpater\<VH:ViewHolder>
+
+     - getItemViewType()
+
+     - onCreateViewHolder()
+
+     - onViewAttachedToWindow()
+
+     - onBindViewHolder()
+
+     - onViewDetachedFromWindow()
+
+     - onViewRecycled()
+
+     - 刷新数据的方法以及区别,原理
+
+       - notifyDataSetChanged()
+
+       - notifyItemInserted(position) //removed,changed
+
+       - 观察者模式.
+
+         recyclerView.setAdapter()的时候注册了AdpaterDataObserver
+
+2. 四级缓存机制
+
+   哪四级,默认个数多少,缓存流程,缓存的是ViewHolder
+
+   scrap
+
+   cache
+
+   ViewCacheExtension
+
+   RecycledViewPool
+
+3. 一些常用方法的作用和注意事项
+
+   1. 获取item
+
+      - recyclerView.getChildAt(position)
+
+        这个方法有啥注意事项?
+
+   2. 获取positioin
+
+      - recyclerView.getLayoutPosition()
+
+      - getAdapterPosition()
+
+        两个方法有啥区别?获取position有什么注意事项?最好用哪个方法?
+
+   3. 滑动到指定位置
+
+      显示在何处,当前item已经处于屏幕内了还能滑吗?
+
+      1. recyclerView或者layoutManager里的scrollToPosition(),smoothScrollToPosition()
+      2. LinearLayoutManager里的scrollToPositionWithOffset()
+      3. recyclerView的scrollBy()
+
+4. 一些常用功能如何实现
+
+   1. 左滑删除item
+   2. item出现的动画
+
+## ShapeView
+
+轮子哥的,方便设置圆角的view
+
+- 外阴影实现
+
+  外层嵌套一个View,从外层布局设置阴影,再设置paidding
+
+## TextView
+
+- URL识别
+- 长按复制
+- 富文本展示
+
+
 
 # JetPack
 
@@ -57,7 +895,112 @@ class MainActivity: AppCompatActivity() {
 ViewModel持有liveData等数据类，并且能在配置更改时仍然保存。也就是说ViewModel的生命周期比Activity长，它是存放于ViewModelStore里的，因此如果在Activity里直接实例化，会导致ViewModel的特性失效了
 ~~~
 
-# 功能实现和三方库
+
+
+## CameraX
+
+### CameraController
+
+提供大多数 CameraX 核心功能,并且可自动处理相机初始化、用例管理、目标旋转、点按对焦、双指张合缩放等操作.
+
+### CameraSelector
+
+相机选择器. 
+
+CameraSelector.DEFAULT_BACK_CAMERA  默认后摄像头
+
+### ImageCapture
+
+```kotlin
+val imageCapture = ImageCapture.Builder()
+	.setBufferFormat(ImageFormat)
+	.setCaptureMode(ImageCapture.CAPTURE_MODE_ZERO_SHUTTER_LAG) 
+```
+
+#### BufferFormat/OutputFormat
+
+输出图片的格式
+
+- ImageFormat.JPEG
+
+- ImageFormat.YUV_420_888  //这个格式Android所有设备都兼容.
+
+  经测试,使用ImageFormat.JPEG,拍照时长900ms,ImageFormat.YUV_420_888能减少到500ms,最快能到300ms,拍摄速度快.
+
+
+
+#### CaptureMode
+
+- ImageCapture.CAPTURE_MODE_ZERO_SHUTTER_LAG // 零延迟快门,设置了也没什么用.
+- ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY // 低延迟模式,默认,设置了没什么效果
+- ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY //高质量模式,
+
+#### FlashMode
+
+闪光灯模式.
+
+- ImageCapture.FLASH_MODE_ON
+- ImageCapture.FLASH_MODE_OFF  //默认
+- ImageCapture.FLASH_MODE_AUTO  
+- ImageCapture.FLASH_MODE_SCREEN   //这个不能直接用, a non-null `ScreenFlash` instance must also be set with `setScreenFlash`.
+
+设置了FlashMode之后,会使拍照时长增加到900ms左右.不设置会减少200~300ms
+
+
+
+## Hilt
+
+
+
+### 使用
+
+1. 导入hilt依赖
+2. 申明插件(必须先导入依赖再申明插件)
+3. 在app目录的Application里添加@HiltAndroidApp注解(注意不能是在base module里的application)
+
+### 各地方注解
+
+- 普通类
+
+  1. @Inject constructor()在构造函数处注解,
+
+  2. 使用 @Inject laterinite var xx:XX 来获取
+
+- ViewModel里
+
+  @HiltViewModel
+
+  注解了VM之后,应当直接使用by viewmodel,不用@Inject
+
+
+
+# 三方库和源码
+
+## LeakCanary
+
+内存泄露检测框架.
+
+### 原理简述
+
+核心原理是利用Refercence及ReferenceQueue来实现对对象是否被回收的监听.
+
+### Reference和ReferenceQueue
+
+Reference是四大引用父类,ReferenceQueue是一个单向队列,存储的是Reference对象.Reference对象可以关联一个对象和ReferenceQueue,JVM在回收该对象时,会将reference对象添加到ReferenceQueue里,根据这个原理,可以通过检测ReferenceQueue里是否存在reference对象,来判定是否发生了内存泄露.
+
+### LeakCanary工作流程
+
+1. 使用ContentProvider初始化.
+2. 对相关对象的销毁进行监听.(Activity,Fragment,Fragment的View,ViewModel)
+3. 收到销毁回调后,创建KeyedWeakReference和ReferenceQueue并关联.
+4. 延迟5秒检查引用队列里是否有对象,如果没有,那么说明发生了内存泄露.
+5. 通过dump heap获取hprof文件.
+6. 通过Shark库解析hprof文件,获取泄露对象,并计算泄露对象到GC roots的最短路径.
+7. 合并多个泄露路径并输出分析结果展示.
+
+### 源码解析
+
+# 功能效果实现
 
 ## AI
 

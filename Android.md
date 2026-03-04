@@ -873,6 +873,10 @@ RecyclerView
 - 长按复制
 - 富文本展示
 
+### SpannableString
+
+可以更改TextView中的部分文本颜色，添加点击事件等。
+
 
 
 # JetPack

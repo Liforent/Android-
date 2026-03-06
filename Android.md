@@ -109,6 +109,8 @@ public Handler() {
 
 ### 生命周期
 
+onCreate()，onStart()，onResume()，onPause()，onStop()，onDestory()
+
 1. 生命周期
 
 2. 切换横竖屏生命周期变化
@@ -124,6 +126,38 @@ public Handler() {
 7. AMS中如何管理Activity信息的?
 
    ActivityRecord,TaskRecord,ActivityTask,ActivitySupervisor
+
+### 启动模式
+
+启动模式由launchMode和Intent flag两者共同决定。
+
+主要是单个任务栈包含的Activity，可能是来自于不同的应用。单应用也可以包含多个任务栈，返回栈包含的多个任务栈之间也可以进行顺序切换、甚至任务栈中的 Activity 也可以被迁移到另外一个任务栈、Intent flag 可以多个组合使用。有些启动模式可通过 launchMode 来定义，但不能通过 Intent flag 定义，同样，有些启动模式可通过 Intent flag 定义，却不能在 launchMode 中定义。两者互相补充，但不能完全互相替代，且 Intent flag 的优先级会更高一些。
+
+#### LaunchModel
+
+1. Standard
+
+2. SingleTop
+
+   栈顶复用。如果当前任务栈已存在目标Activity的实例，则会调用其onNewIntent方法将Intent转送给该实例并复用，否则会新建。
+
+3. SingleTask
+
+   如果系统当前不包含目标 Activity 的目标任务栈，那么系统就会先创建出目标任务栈，然后实例化目标 Activity 使之成为任务栈的根 Activity。如果系统当前包含目标任务栈，且该任务栈中已存在该目标 Activity 的实例，则系统会通过调用其 `onNewIntent()` 方法将 Intent 转送给该现有实例，而不会创建新实例，并同时弹出该目标 Activity 之上的所有其它实例，使目标 Activity 成为栈顶。如果系统当前包含目标任务栈，但该任务栈不包含目标 Activity 实例，则会实例化目标 Activity 并将其入栈。因此，系统全局一次只能有一个目标 Activity 实例存在。
+
+4. SingleInstance
+
+   通过 singleInstance 启动的 Activity 会独占一个任务栈，系统不会将其和其它 Activity 放置到同个任务栈中，由该 Activity 启动的任何 Activity 都会在其它的任务栈中打开
+
+#### IntentFlag
+
+在启动 Activity 时，我们可以通过在传送给 `startActivity(Intent)` 方法的 Intent 中设置多个相应的 flag 来修改 Activity 与其任务栈的默认关联，即 Intent flag 的优先级会比 launchMode 高。
+
+- FLAG_ACTIVITY_NEW_TASK
+- FLAG_ACTIVITY_SINGLE_TOP
+- FLAG_ACTIVITY_CLEAR_TOP
+- FLAG_ACTIVITY_CLEAR_TASK
+- 。。。
 
 ## Service
 
@@ -162,6 +196,16 @@ public Handler() {
    AMS,观察者模式
 
 ## Fragment
+
+### 生命周期
+
+![image-20260306114537703](/Users/mac/Library/Application Support/typora-user-images/image-20260306114537703.png)![image-20260306114613155](/Users/mac/Library/Application Support/typora-user-images/image-20260306114613155.png)
+
+onCreateView到onDestoryView()之间的生命周期都可能触发多次。
+
+FragmentTransaction操作了回退栈 之后，Fragment生命周期会收到影响触发多次。***\*先后加载不同 Fragment。新加载的 Fragment 就会取代之前的 Fragment 切换到前台，旧的 Fragment 的视图 View 就会被销毁。如果加载新 Fragment 的操作有添加到\**回退栈**中，那么当用户点击返回键时旧的 Fragment 就会重新呈现到前台，此时就会重新走一遍 `onCreateView` 到 `onDestroyView` 方法之间的流程了。
+
+Fragment**getViewLifecycleOwner()**只能在这个期间被调用，否则会直接抛出异常。
 
 ### Q&A
 
@@ -877,7 +921,47 @@ RecyclerView
 
 可以更改TextView中的部分文本颜色，添加点击事件等。
 
+## Bitmap
 
+### BitmapConfig
+
+- ARGB_4444, 
+
+  2个字节，有透明度
+
+- ARGB_8888
+
+  4个字节。BitmapFactory的默认编码格式。
+
+- RGB_565
+
+  2个字节，没透明度
+
+
+
+### Bitmap内存计算
+
+内存 =  宽 * 高 * 位数 （比如 1920px * 1080px * 4(ARGB_8888编码格式)）= 8294400 byte = 7.91MB
+
+### 与drawable文件夹的关系
+
+将上述图片从drawable-xxhdpi移动到drawable-xhdpi，会发生什么变化？
+
+假设设备的dpi是480，如果xxhdpi目录下没有目标图片，而是从xhdpi目录下拿到的，那么系统会将图片放大1.5倍（480/320），相应的内存会增加2.25倍。
+
+### 与ImageView宽高的关系
+
+默认不会影响，设置到ImageView之前，肯定已经加载到内存了。但是如果是Glide等框架，会根据ImageView的宽高对图片进行缩放，因此内存会有变化，如果图片是个大长图，导致了图片被放大了很多倍，就有可能导致OOM。
+
+### Bitmap加载优化
+
+1. 压缩图片
+
+   图片大小1920 * 1080，假设加载到540*540的ImagView里，如果按照原图加载肯定会浪费很大内存，因此可以对图片进行压缩。我们在正式加载 Bitmap 前要先获取到 Bitmap 的实际宽高大小，这可以通过 inJustDecodeBounds 属性来实现。
+
+2. 调整图片编码格式
+
+   使用 RGB_565替换ARGB_8888。
 
 # JetPack
 
@@ -1623,6 +1707,79 @@ com.geyifeng.immersionbar:immersionbar
 
 实现垂直的字母导航效果。见自定义GameLetterView
 
+# 适配
+
+## 屏幕适配
+
+### dpi 
+
+Dots per Inch，每英寸的像素点数量。通过 DisplayMetrics 来获取。
+
+```kotlin
+TAG: densityDpi: 480，//像素密度480
+TAG: density: 3.0，// 1dp = 3px
+TAG: widthPixels: 1080px  //360dp
+TAG: heightPixels: 2259px //753dp
+
+px = dp * (dpi / 160) 
+```
+
+Android 系统定义的屏幕像素密度基准值是 160dpi，该基准值下 1dp 就等于 1px，依此类推 320dpi 下 1dp 就等于 2px, 480dpi 下 1dp等于3px。
+
+480dpi 对应的资源文件是 xxhdpi
+
+### 为什么要适配
+
+不管我们在布局文件中使用的是什么单位，最终系统在使用时都需要将其转换为 px，由于不同手机的屏幕像素尺寸会相差很大，我们自然不能在布局文件中直接使用 px 进行硬编码。因此 Google 官方也推荐开发者尽量使用 dp 作为单位值，因为系统会根据屏幕的实际情况自动完成 dp 与 px 之间的对应换算。但是，使用 dp 只能适配大部分宽高比例比较常规的机型，对于特殊机型就无能为力了……
+
+## 不同版本Android API适配
+
+### Android 15
+
+- 16KPageSize
+
+  **自 2025 年 11 月 1 日起，所有提交到 Google Play 且面向 Android 15+ 设备的新应用和现有应用的更新都必须支持 16 KB 的页面大小**。
+
+# 编译器
+
+- D8编译器
+
+  这是开发者在日常开发中使用的**调试编译器**，它速度快、支持增量编译，目的是让开发者能够以最快的速度在设备或模拟器上编辑、运行和调试代码，但它不会对代码进行深度的性能优化
+
+- R8编译器
+
+  这是用于发布 (Release build) 的**全局优化编译器**，它会将整个应用作为一个整体进行静态分析，花费可能高达数十分钟的时间来应用各种复杂的优化，从而生成体积最小、运行最快的最终代码
+
+## R8的核心优化机制
+
+- **Tree Shaking** ：正常应用里通常会引入大量第三方库，但往往只使用其中的一小部分功能，而 R8 能够通过全局静态分析，**找出哪些代码在运行时永远不会被调用，并将其完全移除** （*当然，这也是很多时候大家讨厌 R8 的原因，因为 R8 在高版本默认开启后，应用升级就崩溃*）
+- **方法与参数内联** ：R8 会分析代码的调用情况，将总是接收相同参数的方法，或调用频繁但非常简短的方法直接内联到调用处，从而减少虚拟方法调用的开销
+- **合并接口**：如果 R8 发现一个接口在实际生产代码中只有一个实现类（例如仅仅为了单元测试而提取的接口），它可以将该接口直接合并到实现类中，减少一层指针查找的性能损耗
+- **与 ART 运行时的协同优化**：R8 的工作会为设备上的 ART (Android Runtime) 编译器“铺平道路”，结合 Baseline Profiles（基准配置文件），R8 知道哪些代码是启动时的“热代码”，并会在 DEX 文件中留下提示，帮助 ART 在用户设备上进一步生成高效的机器码
+- **移除 Kotlin 空安全检查**：Kotlin 会在底层插入大量的非空检查 (如`checkNotNullParameter` 等)，在发布版本中，R8 可以基于全局分析证明某些值永远不为空从而移除检查，或者将其替换为不带冗长字符串的精简指令，既减小了体积又提升了性能
+
+## R8 面临的最大挑战：反射与 Keep Rules
+
+**反射与 JNI 带来的问题** ：由于 R8 是静态分析工具，它很难预测在运行时通过字符串动态调用的类、方法或字段（如反射），如果 R8 看不到某个类的静态调用，就会将其当作“死代码”移除，导致应用在运行时抛出 `ClassNotFoundException` 崩溃
+
+**保留规则 (Keep Rules)** ：为了反射和 JNI 问题，开发者必须编写 Keep Rules 来明确告诉 R8 哪些类和方法不能被优化或移除，但是很多第三方库为了省事，会编写过于宽泛的规则（例如要求保留整个库的所有代码），这会严重阻碍 R8 发挥作用并拖累整体性能
+
+## 开发者体验与工具链的改进
+
+**反混淆与崩溃日志**：R8 会将类名和方法名重命名为简短的字母（如 "a", "b", "c"）以节省空间，为了让崩溃日志可读，R8 会输出 Mapping 文件，现在的 Android Studio 提供了不错的集成（*Android Studio 的 App Quality Insights*），开发者可以在 IDE 中直接点击按钮，自动下载和映射线上的崩溃堆栈，体验上和调试 D8 构建一样顺畅（*它会利用线上的 mapping 文件对崩溃堆栈进行反混淆*）
+
+**官方文档大翻新**：在此之前，R8 的文档一言难尽，而现在 R8 团队对官方文档进行了大规模翻新，详细解释了 R8 的工作原理、Keep Rules 的语法规范、最佳实践以及如何排查不合理的保留规则
+
+**R8 会大量更改源码的情况，所以栈轨迹无法指向原始代码**，例如行号以及类和方法的名称可能会发生变化，所以在使用 `retrace` 时，需要 mapping 文件，例如 ： `$ANDROID_HOME/cmdline-tools/latest/bin/retrace app/build/outputs/mapping/$releaseVariant/mapping.txt trace.txt` 。
+
+## R8 的新特性与未来方向
+
+**局部/包级别的 R8 优化 (Gradual R8)** ： 为了帮助历史包袱沉重的大型应用逐步迁移到 R8，R8 团队推出了按包范围开启 R8 的功能，开发者可以先对 AndroidX 库、Compose 等确定安全的包开启优化，然后逐步将自己的业务代码加入优化范围，从而降低崩溃风险
+
+**@UsesReflection 注解**：相比于在单独的配置文件中写晦涩的 Keep Rules，R8 团队正在推广一种新的 `@UsesReflection` 注解，开发者可以直接在**发起反射调用的地方**添加注解，指明它反射了什么目标，这种方式让配置跟随代码移动，支持条件保留，且能被 IDE 直接识别和检查
+
+**优化的资源缩减 (Optimized Resource Shrinking)** ：过去，代码缩减和资源缩减是分开进行的，现在 R8 将这两者结合起来，可以跨越代码和 XML 资源进行全局追踪，如果一个 Activity 的代码被判定为未使用并被移除了，R8 会顺藤摸瓜将它引用的无用 XML 布局、图片资源一并剔除
+
 # 踩坑记录
 
 ## Try Catch未捕获到
@@ -2192,7 +2349,37 @@ public UserInfo getUserInfo() {
    3. 限制图片宽高，不设置自适应，或者使用oss获取宽高
    4. Glide开启缓存
 
-## WebView秒开
+## 内存优化
+
+### 内存泄漏 MemoryLeak
+
+长生命周期对象，持有短生命周期对象的引用，导致短生命周期对象无法被回收的场景。
+
+#### 场景
+
+1. 资源未关闭
+
+2. 注册反注册，订阅反订阅
+
+3. 匿名内部类
+
+   - 为什么点击事件不会导致内存泄漏？
+
+4. Handler未被声明为static
+
+   非静态的内部类，和匿名内部类，都会持有外部类的引用。
+
+   延迟消息导致的MemoryLeak:
+
+   message持有Handler引用，Handler持有Activity的隐式引用
+
+5. 静态类持有了Activity的引用
+
+6. ThreadLocal
+
+   key是被weakRere
+
+## WebView
 
 Android加载H5页面流程：
 
@@ -2203,6 +2390,10 @@ Android加载H5页面流程：
 5. 渲染
 
 Webview提速优化的思路可以按照上述流程来。
+
+### WebView相关类
+
+#### WebViewClient
 
 ### WebView加载优化
 
@@ -2234,6 +2425,57 @@ Webview提速优化的思路可以按照上述流程来。
    - Webview池占用额外内存的问题
 
      空间换时间，会有额外内存开销导致OOM等，可以根据版本来实现。
+
+3. 预置离线包
+
+   js,html,ico等文件
+
+   1. 离线包管理，静默下载，更新
+   2. 内置离线包解压，SHA值对比防篡改等。
+
+4. 网络优化
+
+   - 并行请求（预加载接口）
+
+     H5在加载模版文件的时候，原生同时进行正文数据请求，Native 端再通过 JS 将正文数据传给 H5，以此来实现并行请求从而缩短总耗时。
+
+     实现预加载接口可通过接口配置下发。
+
+   - 浏览器的Http缓存策略
+
+   - 拦截请求与共享缓存（重写WebViewClient的shouldInterceptRequest方法）
+
+     1. 先判断是否命中本地缓存，如果命中了，返回本地资源构建的WebResourceResponse。
+
+     2. 通过OKHttp的Cache功能来实现资源缓存，比如图片，HTML，JS等类型。
+
+        拦截上述类型的请求，全部通过原生的OKHttp去请求，这样的好处是能图片WebView自带的缓存容量的上限。（WebView默认也有缓存机制，但是缓存空间相对比较小。）参考[CacheWebView](https://link.juejin.cn/?target=https%3A%2F%2Fgithub.com%2Fyale8848%2FCacheWebView)实现。
+
+   - CDN加速
+
+     构建CDN网络，将JS，CSS，图片视频等静态类型文件托管到CDN提升下载速度。
+
+5. 延迟加载
+
+   双端非首屏必须的网络请求，JS调用，埋点上报等，都后置到首屏显示之后再执行。
+
+6. 页面静态直出 ？？？
+
+   并行请求正文数据虽然能够缩短总耗时，但还是需要完成解析 JSON、构造 DOM、应用 CSS 样式等一系列耗时操作，最终才能交由内核进行渲染上屏，此时 **组装 HTML** 这个操作就显得比较耗时了。为了进一步缩短总耗时，可以改为由后端对正文数据和前端代码进行整合，直出首屏内容，直出后的 HTML 文件已经包含了首屏展现所需的内容和样式，无需进行二次加工，内核可以直接渲染。其它动态内容可以在渲染完首屏后再进行异步加载
+
+   由于客户端可能向用户提供了控制 WebView 字体大小，夜间模式的选项，为了保证首屏渲染结果的准确性，服务端直出的 HTML 就需要预留一些占位符用于后续动态回填，客户端在 loadUrl 之前先利用正则匹配的方式查找这些占位字符，按照协议映射成端信息。经过客户端回填处理后的 HTML 内容就已经具备了展现首屏的所有条件
+
+7. 复用Webview ？？？
+
+   更进一步的做法就是可以尝试复用 WebView。由于 WebView 使用的模板文件已经是固定的了，因此我们可以在 WebView 预加载缓存池的基础上增加复用 WebView 的逻辑，当 WebView 使用完毕后可以将其正文数据全部清空并再次存入缓存池中，等下次需要时就可以直接注入新的正文数据进行复用了，从而减少了频繁创建 WebView 和预热模板文件带来的开销
+
+8. 白屏检测和降级
+
+   通过截屏实现白屏检测。（无法感知白屏？？？）
+
+
+
+
 
 
 
@@ -2639,6 +2881,14 @@ ServiceWorker
 
 ## 代码性能优化
 
+### 自动装箱
+
+1. 慎用**arrayOf**
+
+   val intArr = arrayOf(1,2,3) //得到的是包装类型Integer的数组，有自动装箱的开销。
+
+   用intArrayOf(1,2,3)来替换。
+
 ### 高阶函数的使用
 
 - toLowerCase()， equals(igNoreCase: Boolean)
@@ -2804,6 +3054,12 @@ Native Crash：JNI代码或第三方库问题
 
 1. ##### 注意事项
 
-1. 需要USB调试权限和root权限才能访问部分日志文件
-2. 日志保留时间取决于设备型号和系统版本
-3. 建议在发现崩溃后尽快收集日志，避免被覆盖
+2. 需要USB调试权限和root权限才能访问部分日志文件
+3. 日志保留时间取决于设备型号和系统版本
+4. 建议在发现崩溃后尽快收集日志，避免被覆盖
+
+
+
+# 待梳理
+
+https://juejin.cn/user/2788017216685784/posts

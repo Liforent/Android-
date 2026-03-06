@@ -1008,6 +1008,13 @@ ThreadLocal内存泄漏怎么导致的？
 
 虽然 `ThreadLocalMap` 在 `get()`, `set()` 和 `remove()` 操作时会尝试清理 key 为 null 的 entry，但这种清理机制是被动的，并不完全可靠。
 
+### ThreadLocal如何保证了线程安全？
+
+1. ThreadLocal是线程私有的变量，
+2. get和set方法，都是先调用了Thread.currentThread()保证了当前线程。
+
+总结就是ThreadLocal的存取数据，都是从当前线程的map来取的。
+
 **如何避免内存泄漏的发生？**
 
 1. 在使用完 `ThreadLocal` 后，务必调用 `remove()` 方法。 这是最安全和最推荐的做法。 `remove()` 方法会从 `ThreadLocalMap` 中显式地移除对应的 entry，彻底解决内存泄漏的风险。 即使将 `ThreadLocal` 定义为 `static final`，也强烈建议在每次使用后调用 `remove()`。
@@ -1307,11 +1314,55 @@ Monitor基于C++实现，每个对象都内置了一个ObjectMonitor对象，另
 
 ## volatile
 
-volatitle和synchronized区别
+### volatile作用
+
+1. 保证变量可见性
+
+   CPU都是有行缓存的，volatile能让行缓存无效，因此每个线程都能读到内存中最新的值。
+
+2. 保证赋值操作原子性
+
+   boolean，int的赋值本身就是原子性的。但是long和double则不一定，如果是32位的处理器，对于64位的变量的操作可能会被分解成为二个步骤：高32位和低32位，由此可能会发生线程切换，从而导致线程不安全。如果变量声明为volatile，那么虚拟机会保证赋值是原子的，是不可被打断的。
+
+3. 禁止指令重排
+
+   正常情况下，虚拟机会对指令进行重排，当然是在不影响程序结果的正确性的前提下。volatile能够在一定程度上禁止虚拟机进行指令重排。还有就是对于volatile变量的写操作，保证是在读操作之前完成。
+
+   ~~~Java
+   private volatile boolean flag;
+   	
+   public void setFlag(boolean flag) {
+   	this.flag = flag;
+   }
+   	
+   public void getFlag() {
+   	return flag;
+   }
+   
+   假设线程A来调用setFlag(true)，线程B同时来调用getFlag，对于一般的变量，是无法保证B能读到A设置的值的，因为它们执行的顺序是未知的。但是像上面，加上volatile修饰以后，虚拟机会保证，线程A的写操作在线程B的读操作之前完成，换句话，B能读到最新的值。当然了，用锁机制也能达到同样的效果，比如在方法前面都加上synchronized关键字，但是性能会远不如使用volatile。
+   ~~~
+
+### volatitle和synchronized区别
 
 - volatile轻量级，性能更好
 - volatile只能用于变量，只保证可见性，不保证原子性，synchronized两者都保证。
 - volatile主要用于解决变量在多个线程之间的可见性，synchronized解决多个线程访问资源的同步性。
+
+### volatile的典型使用场景
+
+- 读操作，多于写操作
+- 写操作，不依赖于变量的当前值，也就是说要是纯赋值操作
+- 只需要读取的值，不需要等待某一特定的值
+
+1. 多线程情况下的标志位。
+
+   比如，有一个检查新版本的按扭，点击时会发起去检查新版本，因为检查新版本涉及网络请求，可能会比较耗时，所以需要放在单独的线程中去做。为了避免多次同时触发检查请求，做一个限制：上一个请求没有完成时，再次点击无效。这时就可以用volatile来做个标志位。
+
+2. CAS无锁同步的变量声明
+
+### volatile的实现机制
+
+volatile是靠内存屏障和[MESI](https://link.juejin.cn?target=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FMESI_protocol)（缓存一致性协议）来达成的它的作用的。[内存屏障](https://link.juejin.cn?target=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FMemory_barrier)(Memory Barriers)是处理器提供的一组内存操作指令，它的作用是限制内存操作的顺序，也就是说内存屏障像一个栅栏一样，它前面的指令要在它后面的指令之前完成；还能强制把缓存写入到主存；再有的就是触发缓存一致性，就是当有写变量时，会把其他CPU核心的缓存变为无效。
 
 ## ReentrantLock
 

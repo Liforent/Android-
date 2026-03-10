@@ -1,5 +1,85 @@
 # Android底层
 
+## APK构建流程
+
+### 编译器
+
+- javac，把.java文件编译成JVM能读懂的.class字节码文件
+
+- kotlinc，功能和javac类似，对kotlin的语法做了优化，能把.kt文件也翻译成.class文件。
+
+- aapt2，Android Asset PackgingPackging Tool2，安卓资源打包工具。
+
+  把res目录下的布局、图片、字符串等资源编译成二进制格式，生成resources.arsc文件；还会处理AndroidManifest.xml，给它加上编译后的信息。
+
+- llvm/clang，c/c++代码编译，如果你的项目里用到了 NDK（比如调用 C 语言写的算法库），就需要它把.c/.cpp文件编译成.so动态库。
+
+### 打包工具
+
+- dx工具
+
+  把所有.class文件转换成Android虚拟机能识别的.dex文件。为什么要转？因为 JVM 的.class文件在手机上运行效率太低，.dex文件是专门为移动设备优化的，体积更小、加载更快。
+
+- apkbuilder
+
+  把.dex文件、resources.arsc、AndroidManifest.xml、图片等资源打包成一个未签名的unsigned.apk文件。这一步就像把所有零件装进一个 “半成品盒子” 里。
+
+### 签名工具
+
+- jarsigner
+
+  给未签名的 APK 文件签名，生成signed.apk。签名的作用是什么？一是证明 APP 的身份，防止别人冒充你的 APP；二是保证 APP 的完整性，防止代码被篡改。没有签名的 APK，是无法安装到手机上的（除非手机开启了 “未知来源” 或处于调试模式）。
+
+### 构建系统
+
+- Gradle，整个编译流程的 “总指挥”，负责调用上面所有工具，按顺序执行编译、打包、签名等步骤。你在build.gradle文件里写的配置（比如编译版本、依赖库、签名信息），最终都是由 Gradle 来解析和执行的。
+
+- AGP（Android gradle plugin）
+
+  Gradle 的 “Android 专属插件”，因为 Gradle 本身是一个通用的构建工具（可以用来构建 Java、C++ 项目），AGP 则专门为 Android 项目定制了编译逻辑，比如处理资源、生成多渠道 APK 等。
+
+### 编译构建流程
+
+1. aapt2对res目录下的资源进行预处理
+
+   - 资源编译
+
+     把 XML 布局（比如activity_main.xml）、图片（ic_launcher.png）、字符串（strings.xml）等资源转换成二进制格式。为什么要转成二进制？因为 XML 是文本格式，解析速度慢，二进制格式能让 APP 启动时加载资源更快。
+
+   - 生成R.java文件
+
+     aapt2 会扫描所有资源，给每个资源分配一个唯一的 ID（比如R.layout.activity_main、R.drawable.ic_launcher），然后生成R.java文件。你在代码里引用资源时，其实就是在使用这些 ID，编译器会通过R.java找到对应的资源。
+
+2. javac/kotlinc 编译源代码
+
+   编译器会把你的 Java/Kotlin 代码编译成.class文件（R.java文件也会被一起编译，代码里引用了R文件）
+
+3. 处理依赖库，合并所有.class文件
+
+4. dx工具把所有.class文件转换成.dex文件
+
+   - 去除冗余class信息，减少文件体积
+   - 把多个.class合并成一个或者多个.class文件
+
+5. Apkbuilder打包成未签名APK
+
+6. jarsigner签名
+
+7. zipalign工具优化APK。
+
+   它的作用是把 APK 文件中的资源按 4 字节对齐
+
+### 编译加速技巧
+
+。。。
+
+### Android编译底层原理
+
+- ART与Dalvik虚拟的区别
+- 基于栈和基于寄存器的区别
+- appt2的资源ID为什么是32位整数？
+- gradle增量构建原理，为什么修改一行代码可以不用重新编译整个项目？
+
 ## Binder机制
 
 
@@ -17,6 +97,18 @@
 6. Activity之间传输数据,除了使用Intent,还能如何传输?
 
 ## Handler机制
+
+### Message
+
+同步消息和异步消息
+
+同步消息屏障
+
+### MessageQueue
+
+### Looper
+
+### Handler
 
 ### Q&A
 
@@ -815,6 +907,30 @@ RecyclerView
 
 
 
+## View滑动控制
+
+### 如何实现View的滑动
+
+View#scrollBy, View#scrollTo, View#onScrollChanged
+
+### Scroll手势
+
+GestureDetecor可以识别手势，或者自己处理onTouchEvent
+
+### Fling手势
+
+Fling是快速滑动，对Fling来说最重要的是速度。GestureDetecor识别Fling的逻辑是判断速度是否超过了阈值，超过了便会回调。
+
+### VelocityTracker
+
+这个是GestureDetecor里边帮忙处理一些速度逻辑的对象
+
+### Scroller
+
+对滑动的封装，是一个滚动计算器，作用在于实现平稳滑动，不让View的滚动出现跳跃。
+
+### 滑动冲突处理
+
 ## 常用控件
 
 ## RecyclerView
@@ -921,6 +1037,12 @@ RecyclerView
 
 可以更改TextView中的部分文本颜色，添加点击事件等。
 
+### Baseline
+
+TextView文本的底部，如何实现两个TextView内容和大小不一样，但是底部对齐？（比如“￥40”这样的价格文本）
+
+这时候就可以通过ConstraintLayout的layout_constraintBaseline_toBaselineOf来实现文本底部对齐。
+
 ## Bitmap
 
 ### BitmapConfig
@@ -962,6 +1084,68 @@ RecyclerView
 2. 调整图片编码格式
 
    使用 RGB_565替换ARGB_8888。
+
+## ConstraintLayout
+
+- goneMargin()
+
+  如果布局被设置了Gone时生效。
+
+- layout_constraintBaseline_toBaselineOf
+
+  对齐两个TextView的文字底部
+
+- 环状排列
+
+  骚气但是不常用
+
+  layout_constraintCircle
+
+  layout_constraintCircleRadius
+
+  layout_constraintCircleAngle
+
+- bias 偏向比例
+
+  layout_constraintHorizontal_bias = "0.2" 偏向左边20%
+
+- ratio 自身比例
+
+  自身宽高比
+
+  app:layout_constraintDimensionRatio="16:9"   <!-- 宽高比16:9 -->
+
+- 最大最小限制
+
+  - max与min限制具体数值
+
+  - layout_constraintWidth_percent
+
+    layout_constraintHeight_percent
+
+    设置默认比例
+
+- chains
+
+  - Style
+
+    spread
+
+    inside 
+
+    packed
+
+  - Weighted 
+
+    给子View加上layout_constraintHorizontal_weight后，就会按比例分配，这个与LinearLayout的layoutWeight用法是一样的。
+
+- groups
+
+  
+
+  
+
+  ​	
 
 # JetPack
 
@@ -1707,6 +1891,10 @@ com.geyifeng.immersionbar:immersionbar
 
 实现垂直的字母导航效果。见自定义GameLetterView
 
+## 黑暗模式适配
+
+https://juejin.cn/post/7587264707285106698
+
 # 适配
 
 ## 屏幕适配
@@ -2338,6 +2526,54 @@ public UserInfo getUserInfo() {
 3. 图片压缩，使用webp，使用svg
 4. 精简so库，移除非必要cpu架构
 
+### so压缩
+
+#### so文件本质
+
+SharedObject，共享对象。本质上是ELF(Executable and Linkable Format)格式的二进制文件，就像一个装满了原生代码、资源和符号表的"大包裹"。
+
+#### so文件体积大的核心原因
+
+1. 冗余代码泛滥。
+2. 冗余调试信息。
+3. 依赖库超标。
+
+更要命的是，Android系统对SO的存储有特殊要求：如果在Manifest中声明`android:extractNativeLibs="true"`，SO会以压缩形式存放在APK中，但安装时会解压到本地，导致占用双倍空间；如果声明为`false`，SO必须以未压缩形式存放，直接让APK体积原地起飞。这就陷入了"压缩占双倍空间，不压缩APK太大"的两难境地，也催生了各种SO压缩方案。
+
+#### 主流so压缩方案盘点
+
+- UPX工具类压缩
+
+  UPX是一款通用的可执行文件压缩工具，支持ELF格式的SO文件，堪称SO压缩的"入门神器"。它的核心原理很简单：对SO文件的代码段和数据段进行压缩，在SO加载时由内置的解压代码自动解压到内存，全程对应用透明。
+
+- 自定义框架压缩——Nano
+
+  优点：压缩率极高（Zstd可达50%-60%，XZ可达60%-70%）；支持分组分块和并发解压，兼顾体积和启动速度；可自定义压缩算法和解压时机，灵活性强；完美适配厂商预装的Store模式要求。
+
+  缺点：集成成本高于UPX；需要修改应用代码，对原生开发不熟悉的开发者有一定门槛；分块逻辑需要根据SO大小合理配置，否则可能影响解压效率。
+
+  
+
+- 原生系统兼容压缩——Deflate的"官方玩法"
+
+  这是Android系统自带的SO压缩方案，核心依赖APK的ZIP压缩特性。当Manifest中声明`android:extractNativeLibs="true"`时，SO会以Deflate算法压缩存放在APK中，安装时系统自动解压到`/data/app/(包名)/lib`目录，运行时直接加载。
+
+  优点：零开发成本，只需一行配置；系统原生支持，兼容性极佳；解压过程由系统管理，稳定可靠。
+
+  缺点：压缩率低（仅30%-40%）；安装时解压会增加安装时间和磁盘占用（APK+解压后的SO）；不支持厂商预装的Store模式要求（厂商通常禁止此配置）。
+
+#### 从源头解决
+
+1. 编译优化，减少冗余
+2. 精简依赖
+3. 动态下载，按需加载so库
+
+
+
+
+
+
+
 ## 图片优化
 
 1. 图片压缩
@@ -2378,6 +2614,319 @@ public UserInfo getUserInfo() {
 6. ThreadLocal
 
    key是被weakRere
+
+### Java内存和Native内存
+
+- Java堆
+
+  由JVM管理，有GC自动回收不用手动操心内存释放，有大小限制，超出会报Java层的OOM。
+
+- Native堆
+
+  直接向系统申请内存，不受虚拟机管理，没有自动回收机制。分配多少，释放多少全由开发者手动控制。看似空间更大，但是一旦失控可能会拖慢整个系统。
+
+### Native内存分配与释放API
+
+- C标准库API
+
+  ~~~C
+  #include <stdlib.h>
+  
+  // 分配内存：未初始化，内容是随机值
+  void* malloc(size_t size); 
+  // 分配内存：初始化所有字节为0
+  void* calloc(size_t num, size_t size); 
+  // 重新分配内存：扩大/缩小已有内存块，可能会移动内存地址
+  void* realloc(void* ptr, size_t size); 
+  // 释放内存：必须和分配API成对使用，否则内存泄漏
+  void free(void* ptr); 
+  ~~~
+
+- C++标准库API
+
+  ~~~c++
+  #include <new>
+  
+  // 分配内存并调用构造函数
+  int* p1 = new int; 
+  int* p2 = new int[10]; // 分配数组
+  // 释放内存并调用析构函数
+  delete p1; 
+  delete[] p2; // 数组必须用delete[]，否则只释放首元素，内存泄漏
+  ~~~
+
+- Android专用API
+
+  ~~~c
+  #include <cutils/memory.h>
+  #include <android/log.h>
+  
+  // 分配可缓存的内存，适合频繁分配/释放的小内存块
+  void* ashmem_create_region(const char* name, size_t size);
+  // 分配共享内存，用于跨进程通信
+  void* mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset);
+  // 释放共享内存/映射内存
+  int munmap(void* addr, size_t length);
+  ~~~
+
+  这类API适合特殊场景（比如跨进程共享数据），但使用门槛更高，比如mmap分配的内存，必须用munmap释放，且要确保addr和length与分配时一致，否则会导致内存泄漏或系统异常。
+
+### Native内存泄漏
+
+本质是分配了的内存没有被释放，且指向该内存的指针被销毁，导致系统无法回收这部分的内存。举个典型的泄漏场景：在Native层写一个工具类，提供一个初始化方法，分配内存后存储在全局指针中，但没有提供对应的释放方法。每次调用初始化方法，都会分配新的内存，旧的内存指针被覆盖，再也无法释放，内存会像滚雪球一样越滚越大。
+
+### 如何定位Native内存泄漏
+
+1. AndroidStudioProfiler
+
+   适用场景：快速查看Native内存整体趋势，判断是否存在内存泄漏、内存暴涨。
+
+   操作步骤：
+
+   1. 打开Android Studio，连接真机/模拟器，运行APP；
+   2. 点击底部「Profiler」，选择「Memory」标签，在顶部选择要监控的APP进程；
+   3. 在「Memory Usage」图表中，选择「Native」选项，即可查看Native内存的实时变化。
+
+   关键解读：
+
+   - 如果Native内存曲线**持续上涨，且操作完成后（比如关闭页面、停止操作）不下降**，大概率存在内存泄漏；
+   - 如果内存曲线**频繁波动、暴涨暴跌**，可能是频繁分配/释放小内存块，导致内存碎片严重；
+   - 缺点：只能看到整体趋势，无法定位到具体的泄漏代码行，**适合“初步排查”**。
+
+2. Native Memory Tracking（NMT）：Google官方神器
+
+   适用场景：精准统计Native内存分配详情，定位泄漏的模块/API，支持ART虚拟机的Android 7.0+设备。NMT是ART虚拟机提供的Native内存跟踪工具，能统计不同类型的Native内存分配（比如malloc分配、mmap分配、线程栈内存等），还能生成详细的内存报告，帮你找到“内存刺客”。
+
+   #### 实战操作：
+
+   ##### 步骤1：开启NMT跟踪
+
+   在APP启动时，通过adb命令开启NMT（需root权限，或APP拥有DEBUG权限）：
+
+   ```bash
+   bash
+   
+    体验AI代码助手
+    代码解读
+   复制代码# 开启NMT，模式为full（完整跟踪，会有一定性能开销）
+   adb shell am start -n 包名/主Activity名 --es android.nmt.app_level full
+   ```
+
+   也可以在Native代码中手动开启：
+
+   ```c
+   c
+   
+    体验AI代码助手
+    代码解读
+   复制代码#include <art/runtime/native_memory_tracking.h>
+   
+   // 开启full模式跟踪
+   art::NativeMemoryTracking::StartTracking(art::NativeMemoryTracking::kFullTracking);
+   ```
+
+   ##### 步骤2：生成内存报告
+
+   执行相关操作（比如触发初始化、跳转页面）后，通过adb命令生成内存报告：
+
+   ```bash
+   bash
+   
+    体验AI代码助手
+    代码解读
+   复制代码# 生成NMT报告，保存到本地文件
+   adb shell dumpsys meminfo 包名 --native-heap > nmt_report.txt
+   ```
+
+   ##### 步骤3：分析报告
+
+   打开nmt_report.txt，重点关注「Native Heap Allocations」部分，会按分配类型统计内存使用情况，示例如下：
+
+   ```text
+   text
+   
+    体验AI代码助手
+    代码解读
+   复制代码Native Heap Allocations:
+   Total: 120MB
+     malloc: 80MB (66.7%)
+       libnative-lib.so: 75MB  # 重点！该so库分配了大量内存
+         0x7f1234567890: 1MB (malloc, 函数名: init_buf)
+         0x7f12345678a0: 1MB (malloc, 函数名: init_buf)
+         ...
+     mmap: 30MB (25.0%)
+     thread stack: 10MB (8.3%)
+   ```
+
+   从报告中可以看出，「libnative-lib.so」库的「init_buf」函数分配了大量内存，结合代码排查，就能快速定位到泄漏点——比如该函数频繁分配内存却未释放。
+
+   小技巧：如果APP使用了多个Native库，可以通过报告中的「libxxx.so」分组，快速锁定内存占用最高的模块，缩小排查范围。
+
+3. Valgrind：Linux老牌工具，精准定位泄漏与野指针
+
+   适用场景：本地调试Native代码，精准定位内存泄漏、野指针、重复释放等问题，适合C/C++原生开发。
+
+4. AddressSanitizer（ASAN）：快速捕捉内存异常（Android 8.0+）
+
+适用场景：真机调试，快速捕捉内存泄漏、野指针、缓冲区溢出等问题，性能开销比Valgrind小，适合开发后期验证优化效果。
+
+ASAN是Google推出的内存错误检测工具，Android 8.0+支持将其集成到APP中，能在运行时实时检测内存异常，并输出详细的错误日志，包括错误类型、代码行号。
+
+### 实战优化
+
+1. 避免内存泄漏
+
+   场景场景：
+
+- 全局指针未释放
+- c++对象未调用析构函数
+- 跨模块调用导致的内存泄漏
+
+2. 内存复用
+
+   - 对象池
+   - 内存池
+
+3. 内存碎片优化
+
+4. 特殊场景优化（图片、文件、线程栈内存）
+
+5. 避坑指南
+
+   - 重复释放内存
+   - 野指针访问
+   - c++数组用delete释放（未加[]）
+   - 智能指针循环引用
+   - 忽略了内存分配失败的情况
+
+   
+
+## 渲染优化
+
+造成UI不流畅的原因：
+
+- 主线程耗时导致掉帧甚至ANR
+
+  列表排序，计算等CPU密集型也可能导致主线程阻塞。
+
+- 布局太复杂或者嵌套过深
+
+- 布局的重绘被触发多次
+
+  - 这通常出现在需要动画的场景，比如以改变View的布局（大小）的方式来实现动画，或者频繁的改变View的层次，比如频繁的addView和removeView。这都会不断的触发measure/onMeasure，layout/onLayout和View的重绘。
+
+- 频繁的GC
+
+  GC会对所有的线程产生影响，对UI线程也是有影响。
+
+### 布局优化
+
+1. 删除无用View
+2. 减少嵌套层次
+3. Merge和Incude，布局复用
+4. ViewStub延迟加载
+5. 减少过度绘制
+6. 延迟加载和按需加载
+
+可以用LayoutInspector来看布局层级
+
+### View绘制优化
+
+1. 当局部更新时不要触发整体重绘
+
+   这里需要，首先，不要故意的去触发整体刷新（除非非常的有必要，比如多个View都需要刷新数据时）；另外，就是要小心防止触发整体刷新的坑，因为某些原因，即使小心的更新局部也会造成整体的刷新。
+
+2. 避免频繁的触发整体的重绘
+
+   千万不要直接改变View的大小的方式来做动画，或者在做动画的同时改变View的布局，更不要添加或者移除View，这都会直接触发整体的重绘
+
+3. 避免onDraw中做额外事情
+
+4. 对象提前初始化，避免重复创建
+
+### 动画优化，让动画“丝滑不卡顿”
+
+动画是提升用户体验的“利器”，但写不好就会变成“卡器”。动画卡顿的根源是：**频繁触发`measure`和`layout`（比如修改`width`、`height`、`margin`），导致每一帧都要重新计算布局**。
+
+### 1. 用属性动画，别用补间动画
+
+补间动画（`AlphaAnimation`、`TranslateAnimation`）只是“视觉欺骗”，不会真正改变View的属性（比如移动一个按钮后，点击原位置仍会触发点击事件），而且容易导致过度绘制。
+
+属性动画（`ObjectAnimator`）直接修改View的属性（如`translationX`、`scaleY`），性能更好，且交互正常：
+
+```kotlin
+kotlin
+
+ 体验AI代码助手
+ 代码解读
+复制代码// 推荐：属性动画移动View（不触发measure/layout）
+ObjectAnimator.ofFloat(button, "translationX", 0f, 300f)
+    .duration = 500
+    .start()
+
+// 不推荐：补间动画（视觉移动，实际位置没变）
+val translateAnim = TranslateAnimation(0f, 300f, 0f, 0f)
+translateAnim.duration = 500
+button.startAnimation(translateAnim)
+```
+
+### 2. 优先用“不触发布局”的属性
+
+动画时修改以下属性，不会触发`measure`和`layout`，只触发`draw`，性能更好：
+
+- 位移：`translationX`、`translationY`
+- 缩放：`scaleX`、`scaleY`
+- 旋转：`rotation`、`rotationX`、`rotationY`
+- 透明度：`alpha`
+
+避免修改以下属性（会触发`measure`或`layout`）：
+
+- `width`、`height`、`layoutParams`
+- `margin`、`padding`
+- `top`、`left`、`right`、`bottom`
+
+### 3. 开启硬件加速：让GPU帮你干活
+
+硬件加速能让GPU分担一部分绘制工作（比如处理纹理、透明度），提升动画流畅度。Android 3.0（API 11）以上默认开启全局硬件加速，但可以针对单个View优化：
+
+```xml
+xml
+<!-- 在布局中开启硬件加速 -->
+<View
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layerType="hardware"/> <!-- 硬件加速 -->
+```
+
+注意：硬件加速不是万能的，某些自定义View（如用`Canvas.drawTextOnPath`）在硬件加速下可能显示异常，这时可关闭：`android:layerType="software"`。
+
+### StriceMode
+
+## ANR
+
+ApplicationNotResponding
+
+
+
+
+
+现象：
+
+1. 触摸事件5秒钟未响应
+
+2. Service20秒钟未响应
+
+3. BroadcastReceiver
+
+   优先级是前台Intent，10~20S
+
+   优先级是后台Intent，60~120S
+
+原因：
+
+![image-20260309182322442](/Users/mac/Library/Application Support/typora-user-images/image-20260309182322442.png)
+
+
 
 ## WebView
 
@@ -2920,6 +3469,10 @@ Logcat 清空所有过滤条件，输入 start u0。
 
 原理：system_server输出了ActivityRecord的相关日志。（所以不能是package: mine）
 
+## AndroidProfiler
+
+https://juejin.cn/post/7591416714694344714
+
 ## Crash日志获取
 
 ### 获取 crash 日志
@@ -3057,6 +3610,16 @@ Native Crash：JNI代码或第三方库问题
 2. 需要USB调试权限和root权限才能访问部分日志文件
 3. 日志保留时间取决于设备型号和系统版本
 4. 建议在发现崩溃后尽快收集日志，避免被覆盖
+
+
+
+# Android逆向
+
+Hook
+
+热修复
+
+插件化
 
 
 

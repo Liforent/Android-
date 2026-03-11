@@ -178,6 +178,30 @@ System.out.println(i1==i2);
 
 深拷贝与浅拷贝的区别，就是对于对象内部的对象，深拷贝也会复制，但是浅拷贝不会。
 
+## 值传递和引用传递
+
+- 值传递
+
+  传递的是实际参数的副本.方法内修改形参,不会改变原变量.
+
+- 引用传递
+
+  传递的是实际参数的引用,也就是内存地址.
+
+Java和Kotlin都是值传递.
+
+对于引用类型:
+
+~~~java
+pulic void change(Person p){
+  p = new Person("") // Java能重新赋值,但是改变不了原值,而Kotlin里,p的类型默认是val的,直接无法赋值.
+}
+~~~
+
+
+
+
+
 ## Object类
 
 - Class<?> getClass()
@@ -253,12 +277,16 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
 
 **字符串常量池** 是 JVM 为了提升性能和减少内存消耗针对字符串（String 类）专门开辟的一块区域，主要目的是为了避免字符串的重复创建。
 
+字符串常量池和静态变量, 已经被移到了堆中,不在方法区了.
+
 ### String s1 = new String("abc");这句话创建了几个字符串对象？
 
 会创建 1 或 2 个字符串对象。
 
 1. 字符串常量池中不存在 "abc"：会创建 2 个 字符串对象。一个在字符串常量池中，由 `ldc` 指令触发创建。一个在堆中，由 `new String()` 创建，并使用常量池中的 "abc" 进行初始化。
 2. 字符串常量池中已存在 "abc"：会创建 1 个 字符串对象。该对象在堆中，由 `new String()` 创建，并使用常量池中的 "abc" 进行初始化。
+
+-----  字符串常量池在JDK7之后已经从方法区移动到了堆区. ------
 
 # 类文件结构
 
@@ -343,6 +371,18 @@ ClassFile {
   - StackOverFlow
 
     当栈的内存大小不允许动态扩展，当线程请求栈的深度超过当前 Java 虚拟机栈的最大深度的时候会抛出。
+
+- 对象有没有可能被分配到栈里,而不在堆里?
+
+  通常情况下,对象都会被分配到堆里.但是堆内存回收依赖GC,需要耗费资源.如果一个对象的生命周期很短,只在某个方法内部调用,那么频繁地在堆上创建和回收它，会给GC带来不必要的压力，影响程序性能。为了优化这种情,JVM引入了**逃逸分析**技术，并配合**标量替换**，实现了“栈上分配”的效果
+
+- 逃逸分析(JDK7之后默认开启)
+
+  如果对象在方法内部创建后,没有被方法返回,也没有被赋值到外部,那么这个对象就被认为是不逃逸的.
+
+- 标量替换
+
+  如果一个对象被判定成了不逃逸,JVM会进行更深层次的优化--标量替换.也就是将对象进一步分解成标量(无法再分解的数据,比如基本类型,指针等)再替换.
 
 ### 本地方法栈 Native Stack
 
@@ -1347,7 +1387,9 @@ Monitor基于C++实现，每个对象都内置了一个ObjectMonitor对象，另
 
   偏向锁将许多复杂代码引入到同步子系统，并且对其他的 HotSpot 组件也具有侵入性。这种复杂性为理解代码、系统重构带来了困难，因此， OpenJDK 官方希望禁用、废弃并删除偏向锁。
 
-## volatile
+## volatile 
+
+/ˈvɒlətaɪl/
 
 ### volatile作用
 
@@ -1361,7 +1403,7 @@ Monitor基于C++实现，每个对象都内置了一个ObjectMonitor对象，另
 
 3. 禁止指令重排
 
-   正常情况下，虚拟机会对指令进行重排，当然是在不影响程序结果的正确性的前提下。volatile能够在一定程度上禁止虚拟机进行指令重排。还有就是对于volatile变量的写操作，保证是在读操作之前完成。
+   正常情况下，虚拟机会对指令进行重排，当然是在不影响程序结果的正确性的前提下。volatile能够在一定程度上禁止虚拟机进行指令重排(插入了内存屏障)。还有就是对于volatile变量的写操作，保证是在读操作之前完成。
 
    ~~~Java
    private volatile boolean flag;
@@ -1398,6 +1440,58 @@ Monitor基于C++实现，每个对象都内置了一个ObjectMonitor对象，另
 ### volatile的实现机制
 
 volatile是靠内存屏障和[MESI](https://link.juejin.cn?target=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FMESI_protocol)（缓存一致性协议）来达成的它的作用的。[内存屏障](https://link.juejin.cn?target=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FMemory_barrier)(Memory Barriers)是处理器提供的一组内存操作指令，它的作用是限制内存操作的顺序，也就是说内存屏障像一个栅栏一样，它前面的指令要在它后面的指令之前完成；还能强制把缓存写入到主存；再有的就是触发缓存一致性，就是当有写变量时，会把其他CPU核心的缓存变为无效。
+
+### voatile在单例中的作用
+
+~~~Java
+public class SingletonClass {
+
+ private volatile static SingletonClass instance = null;
+
+ public static SingletonClass getInstance() {
+   if (instance == null) {
+     synchronized (SingletonClass.class) {
+       if(instance == null) {
+         instance = new SingletonClass();
+      }
+    }
+  }
+   return instance;
+}
+ private SingletonClass() {
+}
+}
+~~~
+
+这里已经使用了双重空校验了,为什么还要使用volatile?
+
+~~~java 
+    // 线程1执行
+    void writer() {
+        a = 1;       // 赋值操作1
+        flag = true; // 赋值操作2
+    } 
+
+这里的赋值操作1和2,可能会存在指令重排的问题
+    // 线程2执行
+    void reader() {
+        if (flag) {          // 读flag
+            int i = a * a;    // 读a
+        }
+    }
+//此时线程2的读操作会有风险.引用类型同理
+// 线程1
+Resource newRes = new Resource();
+newRes.value = 42;
+r = newRes;   // 赋值引用
+
+// 线程2
+if (r != null) {
+    int v = r.value; // 可能看到未初始化的value？
+}
+~~~
+
+
 
 ## ReentrantLock
 
@@ -1486,6 +1580,24 @@ kotlin中可以使用reified关键字来保留泛型的类型。
 
 - **序列化**：将数据结构或对象转换成可以存储或传输的形式，通常是二进制字节流，也可以是 JSON, XML 等文本格式
 - **反序列化**：将在序列化过程中所生成的数据转换为原始数据结构或者对象的过程
+
+注意如果一个类实现了Serializable或者Parcelable,那么他们的引用类型的成员对象也需要实现对应的接口.
+
+## Serializable原理
+
+## Parcelable原理
+
+- Serializable实现简单,用了反射机制,会创建大量临时对象,触发频繁GC.
+
+- Parcelable稍复杂,将对象进行分解,将每一部分包装进一个parcel容器中,这个过程是直接内存读写,没有反射的开销,因此效率高.
+
+- 如果只需要在内存中进行数据传输,应选parcelable,如果需要存储到设备或者网络传输,应该选择Serializable.
+
+  Parcelable的设计目标是高性能的进程间通信,但是不保证数据的持久化稳定性.不同 Android 版本或同一应用的不同版本间，类的实现可能发生变化，这会导致之前持久化到磁盘的 Parcelable 数据在读取时无法反序列化。
+
+  Serializable通过 `serialVersionUID` 来保证版本兼容性，更适合需要长期存储或跨平台、跨网络的数据交换。
+
+
 
 # I/O
 

@@ -1,3 +1,23 @@
+# Android基础
+
+## 屏幕
+
+px pixel像素,画面显示的基本单位,没有实际的固定的长度,只是一个抽象的取样.
+
+目前主流手机高1920px,宽1080px
+
+## CPU架构
+
+- x86
+
+  Intel系列的86结尾的CPU
+
+- x86-64/x64
+
+- ARM
+
+
+
 # Android底层
 
 ## Binder机制
@@ -1118,60 +1138,7 @@ Reference是四大引用父类,ReferenceQueue是一个单向队列,存储的是R
 
 # 功能效果实现
 
-## AI
-
-- 人脸检测，文字识别，条码识别，人脸网格检测，图像标签，姿势检测 等 https://github.com/jenly1314/MLKit
-
-## Banner
-
-io.github.youth5201314:banner
-
-## 布局圆角设置 ShapeView
-
-com.github.getActivity:ShapeView
-
-## 大图加载 SubsamplingScaleImageView
-
-com.davemorrissey.labs:subsampling-scale-image-view-androidx
-
-- 展示异常时没有兜底
-  	出现一个线上图片 https://pxb7-oss-test.pxb7.com/pxb7-test/im/image/20251210/1765360040862.jpeg 在使用大图展示控件展示时，format不支持的问题，会在onImageLoadError处回调异常，直接使用ImageView.setImageUri(File.toUri())能直接展示了，但是缩放不了。
-
-## 导航栏 DslTabLayout
-
-com.github.angcyo.DslTablayout:TabLayout
-
-## 动画库 Pag
-
-com.tencent.tav:libpag
-
-## 富文本加载 markwon
-
-io.noties.markwon:core
-
-## 工具类
-
-- utilcodex 
-
-  com.blankj:utilcodex
-
-## 骨架屏 skeleton
-
-com.ethanhua:skeleton
-
-## 滑块 Seekbar
-
-- com.github.Jay-Goo:RangeSeekBar 支持双向滑动
-
-## Loading库 spinKit
-
-com.github.ybq:Android-SpinKit
-
-## 路由跳转 
-
-- TheRouter
-
-## 屏幕适配 AutoSize
+## 
 
 
 
@@ -2365,7 +2332,26 @@ public UserInfo getUserInfo() {
 
    - 为什么点击事件不会导致内存泄漏？
 
-4. Handler未被声明为static
+     ~~~kotlin
+     	因为Activity销毁的时候,会移除View,移除View里的引用. 如果Android内部没有做处理,这种匿名内部类还是会造成内存泄露.
+     ~~~
+
+   - Kotlin中内部类会导致内存泄露吗?
+
+      kotlin里的内部类,默认是静态内部类,不会持有外部类的引用,如果是inner 标记的内部类,会持有外部类的引用.
+
+4. Lambda表达式为什么会导致内存泄露?Lambda表达式什么情况下会持有外部类引用?
+
+   ~~~kotlin
+   - Lambda表达式里,如果持有了外部类的实例,那么会持有外部类的引用,从而导致内存泄露.
+   	如果没有持有外部类的实例,会被编译成静态内部类,不会导致内存泄露.这点在kotlin和Java上表现基本一致.
+   - 在kotlin里,Lambda表达式会被编译成Function接口,如果持有外部类实例,
+   	inline 标记的lambda表达式,会内联到调用处,也不会导致内存泄露.
+   ~~~
+
+   
+
+5. Handler未被声明为static
 
    非静态的内部类，和匿名内部类，都会持有外部类的引用。
 
@@ -2373,9 +2359,9 @@ public UserInfo getUserInfo() {
 
    message持有Handler引用，Handler持有Activity的隐式引用
 
-5. 静态类持有了Activity的引用
+6. 静态类持有了Activity的引用
 
-6. ThreadLocal
+7. ThreadLocal
 
    key是被weakRere
 
